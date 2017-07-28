@@ -16,7 +16,8 @@ $OID_SELECTED = 0;
 snmp_set_quick_print(TRUE);
 
 $OIDS = array(
-	"LLDP" => "iso.0.8802.1.1.2.1.4.1.1.9",
+        "SNMP" => "1.0.8802.1.1.2.1.4.2.1.3",
+	"LLDP" => "1.0.8802.1.1.2.1.4.1.1.9",
 	"CDP" => "1.3.6.1.4.1.9.9.23.1.2.1.1.6",
 	"EDP" => "1.3.6.1.4.1.1916.1.13.2.1.3"
 );
@@ -72,16 +73,20 @@ function get_oid() {
 function get_snmp_table($device) {
 	global $OID_SELECTED;
 
-	$result = snmp2_walk($device, 'public', $OID_SELECTED);
+	echo "Calling get_snmp_table(" . $device . ")\n";
+	$result = snmp2_real_walk($device, 'public', $OID_SELECTED);
 
 	if ($result != FALSE) {
-		$result = str_replace('"', '', $result);
-		$result = array_unique($result, SORT_STRING);
-		$result = array_values(array_filter($result));
+		$matches = array();
+		foreach ($result as $key => $val) {
+			$match = array();
+			preg_match('/((?:\d+\.){3}\d+)$/', $key, $match);
+			array_push($matches, $match[0]);
+		}
+		$result = array_unique($matches, SORT_STRING);
 		return $result;
-	} else {
-		return FALSE;
 	}
+	return FALSE;
 }
 
 
@@ -115,10 +120,12 @@ function get_device_links($base_device) {
 	global $group;
 	global $links;
 
+	echo "Calling get_device_links(" . $base_device . ")\n";
 	$base_device_id = get_device_id($base_device);
 
 	// Get devices connected to $base_device
 	$snmp_response = get_snmp_table($base_device);
+	var_dump($snmp_response);
 
 	if($snmp_response == FALSE) {
 		return FALSE;
@@ -229,8 +236,7 @@ if ($_POST['dig_level_input'] != '') {
 	$DIG_LEVEL = $_POST['dig_level_input'];
 }
 recursive_search($_POST['ip_input'], $DIG_LEVEL);
-
-file_put_contents('./data/snmp_data.json', json_encode(array('nodes' => $nodes,
+file_put_contents('/var/www/html/data/snmp_data.json', json_encode(array('nodes' => $nodes,
 							     'links' => $links)),
 							     LOCK_EX);
 
